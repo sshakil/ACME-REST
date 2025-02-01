@@ -1,0 +1,52 @@
+-- CREATE EXTENSION IF NOT EXISTS timescaledb;
+--
+-- -- Devices Table
+-- CREATE TABLE devices (
+--                          id SERIAL PRIMARY KEY,
+--                          name TEXT NOT NULL,
+--                          type TEXT NOT NULL,
+--                          created_at TIMESTAMPTZ DEFAULT NOW()
+-- );
+--
+-- -- Add Indexes for Faster Queries
+-- CREATE INDEX idx_devices_type ON devices(type);
+-- CREATE INDEX idx_devices_created_at ON devices(created_at);
+--
+-- -- Sensors Table (Defines Sensor Types)
+-- CREATE TABLE sensors (
+--                          id SERIAL PRIMARY KEY,
+--                          type TEXT NOT NULL UNIQUE,
+--                          unit TEXT NOT NULL,
+--                          created_at TIMESTAMPTZ DEFAULT NOW()
+-- );
+--
+-- -- Add Index for Faster Lookup by Sensor Type
+-- CREATE INDEX idx_sensors_type ON sensors(type);
+-- CREATE INDEX idx_sensors_created_at ON sensors(created_at);
+--
+-- -- Device_Sensors (Maps Sensors to Devices)
+-- CREATE TABLE device_sensors (
+--                                 id SERIAL PRIMARY KEY,
+--                                 device_id INT REFERENCES devices(id) ON DELETE CASCADE,
+--                                 sensor_id INT REFERENCES sensors(id) ON DELETE CASCADE,
+--                                 UNIQUE (device_id, sensor_id)
+-- );
+--
+-- -- Add Indexes for Efficient Device-Sensor Queries
+-- CREATE INDEX idx_device_sensors_device_id ON device_sensors(device_id);
+-- CREATE INDEX idx_device_sensors_sensor_id ON device_sensors(sensor_id);
+--
+-- -- Sensor Readings (Uses device_sensors ID)
+-- CREATE TABLE sensor_readings (
+--                                  time TIMESTAMPTZ NOT NULL,
+--                                  device_sensor_id INT REFERENCES device_sensors(id) ON DELETE CASCADE,
+--                                  value FLOAT NOT NULL
+-- );
+--
+-- -- Convert sensor_readings into a hypertable
+-- SELECT create_hypertable('sensor_readings', 'time');
+--
+-- -- Add Indexes for Faster Time-Based Queries
+-- CREATE INDEX idx_sensor_readings_time ON sensor_readings(time DESC);
+-- CREATE INDEX idx_sensor_readings_device_sensor_id ON sensor_readings(device_sensor_id);
+-- CREATE INDEX idx_sensor_readings_value ON sensor_readings(value);

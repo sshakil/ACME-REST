@@ -1,0 +1,18 @@
+{
+  "development": {
+    "username": "demo",
+    "password": "P@ssword!1",
+    "database": "acme",
+    "host": "localhost",
+    "port": 5432,
+    "dialect": "postgres"
+  },
+  "test": {
+    "username": "demo",
+    "password": "P@ssword!1",
+    "database": "acme_test",
+    "host": "localhost",
+    "port": 5432,
+    "dialect": "postgres"
+  }
+}
