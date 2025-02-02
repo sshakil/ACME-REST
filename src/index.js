@@ -8,10 +8,12 @@ const setupWebSocket = require("./websocket")
 const app = express()
 app.use(cors({ origin: "*" }))
 app.use(express.json())
-app.use("/api", router)
 
 const server = http.createServer(app)
 const io = setupWebSocket(server)
+
+// Attach WebSocket instance to router
+app.use("/api", router(io))
 
 async function checkDatabaseHealth() {
     try {

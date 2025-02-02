@@ -47,13 +47,14 @@ const DeviceSensor = sequelize.define("DeviceSensor", {
 
 // Sensor Readings Table (Hypertable in TimescaleDB)
 const SensorReading = sequelize.define("SensorReading", {
-    time: { type: DataTypes.DATE, allowNull: false, primaryKey: true }, // TimescaleDB uses time as a primary key
+    time: { type: DataTypes.DATE, allowNull: false, primaryKey: true },
     device_sensor_id: {
         type: DataTypes.INTEGER,
         references: { model: DeviceSensor, key: "id" },
-        onDelete: "CASCADE"
+        onDelete: "CASCADE",
+        primaryKey: true
     },
-    value: { type: DataTypes.FLOAT, allowNull: false }
+    value: { type: DataTypes.FLOAT, allowNull: false, primaryKey: true }
 }, {
     tableName: "sensor_readings",
     indexes: [

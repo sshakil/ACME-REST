@@ -19,7 +19,8 @@ npx sequelize-cli migration:generate --name create-schema
 # created src/index.js src/db.js src/routes.js src/websocket.js src/models .env (with db settings corresponding to config/config.js) .gitignore
 # filled in migrations/**-create-schema.js
 npx sequelize-cli db:migrate
-npx nodemon src/index.js
+
+
 curl http://localhost:4000/api/devices
 curl -X POST http://localhost:4000/api/devices -H "Content-Type: application/json" -d '{"name":"Truck 1", "type":"Vehicle"}'
 ```
