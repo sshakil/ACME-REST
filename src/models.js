@@ -69,6 +69,9 @@ const SensorReading = sequelize.define("SensorReading", {
 Device.belongsToMany(Sensor, { through: DeviceSensor, foreignKey: "device_id", onDelete: "CASCADE" })
 Sensor.belongsToMany(Device, { through: DeviceSensor, foreignKey: "sensor_id", onDelete: "CASCADE" })
 
+DeviceSensor.belongsTo(Sensor, { foreignKey: "sensor_id", as: "sensor", onDelete: "CASCADE" })
+Sensor.hasMany(DeviceSensor, { foreignKey: "sensor_id", onDelete: "CASCADE" })
+
 DeviceSensor.hasMany(SensorReading, { foreignKey: "device_sensor_id", onDelete: "CASCADE" })
 SensorReading.belongsTo(DeviceSensor, { foreignKey: "device_sensor_id" })
 

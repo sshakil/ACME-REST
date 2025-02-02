@@ -156,6 +156,53 @@ function createRouter(io) {
         }
     })
 
+    // Get latest sensor readings for all sensors of a given device
+    router.get("/device-sensor-readings", async (req, res) => {
+        try {
+            const { device_id } = req.query
+            if (!device_id) {
+                return res.status(400).json({ error: "device_id is required" })
+            }
+
+            console.log(`📡 Fetching sensor readings for device ${device_id}`)
+
+            // Find all device-sensor mappings for the given device
+            const deviceSensors = await DeviceSensor.findAll({
+                where: { device_id },
+                include: [{ model: Sensor, as: "sensor" }]
+            })
+
+            if (deviceSensors.length === 0) {
+                console.log(`⚠️ No sensors found for device ${device_id}`)
+                return res.json([])
+            }
+
+            // Get the latest readings for each sensor
+            const readings = await Promise.all(
+                deviceSensors.map(async (ds) => {
+                    const latestReading = await SensorReading.findOne({
+                        where: { device_sensor_id: ds.id },
+                        order: [["time", "DESC"]],
+                    })
+
+                    return {
+                        id: ds.sensor.id,
+                        type: ds.sensor.type,
+                        value: latestReading ? latestReading.value : "N/A",
+                        unit: ds.sensor.unit,
+                        time: latestReading ? latestReading.time : "No Data"
+                    }
+                })
+            )
+
+            console.log(`✅ Retrieved ${readings.length} sensor readings for device ${device_id}`)
+            res.json(readings)
+        } catch (error) {
+            console.error("❌ Error fetching sensor readings for device:", error.message)
+            res.status(500).json({ error: "Failed to fetch sensor readings" })
+        }
+    })
+
     // Add a new sensor reading
     router.post("/sensor-readings", async (req, res) => {
         try {
