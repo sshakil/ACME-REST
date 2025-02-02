@@ -212,7 +212,7 @@ function createRouter(io) {
             console.log(`✅ Created sensor reading: ${device_sensor_id} => ${value} at ${time}`)
 
             // Emit WebSocket event to subscribers of this device
-            const room = `device-${device_sensor_id}`;
+            const room = `device-${device_sensor_id}`
             io.to(room).emit("sensor-update", {device_sensor_id, time, value})
 
             res.status(201).json(newReading)

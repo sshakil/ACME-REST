@@ -22,15 +22,15 @@ async function checkDatabaseHealth() {
         await sequelize.authenticate()
         console.log("✅ Database connection is healthy!")
 
-        await sequelize.query("CREATE EXTENSION IF NOT EXISTS timescaledb;")
+        await sequelize.query("CREATE EXTENSION IF NOT EXISTS timescaledb")
 
         const [result] = await sequelize.query(`
-            SELECT hypertable_name FROM timescaledb_information.hypertables WHERE hypertable_name = 'sensor_readings';
+            SELECT hypertable_name FROM timescaledb_information.hypertables WHERE hypertable_name = 'sensor_readings'
         `)
 
         if (result.length === 0) {
             console.log("🛠️ Converting sensor_readings into a TimescaleDB hypertable...")
-            await sequelize.query(`SELECT create_hypertable('sensor_readings', 'time');`)
+            await sequelize.query(`SELECT create_hypertable('sensor_readings', 'time')`)
             console.log("✅ sensor_readings is now a hypertable!")
         } else {
             console.log("✅ sensor_readings is already a hypertable.")

@@ -1,24 +1,24 @@
-const { Server } = require("socket.io");
+const { Server } = require("socket.io")
 
 function setupWebSocket(server) {
-    const io = new Server(server, { cors: { origin: "*" } });
+    const io = new Server(server, { cors: { origin: "*" } })
 
     io.on("connection", (socket) => {
-        console.log("🔌 New client connected");
+        console.log("🔌 New client connected")
 
         // Subscribe clients to specific device updates
         socket.on("subscribeToDevice", (room) => {
-            console.log(`📡 Client subscribed to ${room}`);
-            socket.join(room);
+            console.log(`📡 Client subscribed to ${room}`)
+            socket.join(room)
 
-        });
+        })
 
         socket.on("disconnect", () => {
-            console.log("❌ Client disconnected");
-        });
-    });
+            console.log("❌ Client disconnected")
+        })
+    })
 
-    return io;
+    return io
 }
 
-module.exports = setupWebSocket;
+module.exports = setupWebSocket
