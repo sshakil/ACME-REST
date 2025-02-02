@@ -1,7 +1,7 @@
 const express = require("express")
 const cors = require("cors")
 const { sequelize } = require("./models")
-const router = require("./routes")
+const createRouter = require("./routes")
 const http = require("http")
 const setupWebSocket = require("./websocket")
 
@@ -12,8 +12,8 @@ app.use(express.json())
 const server = http.createServer(app)
 const io = setupWebSocket(server)
 
-// Attach WebSocket instance to router
-app.use("/api", router(io))
+const router = createRouter(io)
+app.use("/api", router)
 
 async function checkDatabaseHealth() {
     try {

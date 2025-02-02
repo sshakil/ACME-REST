@@ -159,17 +159,17 @@ function createRouter(io) {
     // Get latest sensor readings for all sensors of a given device
     router.get("/device-sensor-readings", async (req, res) => {
         try {
-            const { device_id } = req.query
+            const {device_id} = req.query
             if (!device_id) {
-                return res.status(400).json({ error: "device_id is required" })
+                return res.status(400).json({error: "device_id is required"})
             }
 
             console.log(`📡 Fetching sensor readings for device ${device_id}`)
 
             // Find all device-sensor mappings for the given device
             const deviceSensors = await DeviceSensor.findAll({
-                where: { device_id },
-                include: [{ model: Sensor, as: "sensor" }]
+                where: {device_id},
+                include: [{model: Sensor, as: "sensor"}]
             })
 
             if (deviceSensors.length === 0) {
@@ -181,7 +181,7 @@ function createRouter(io) {
             const readings = await Promise.all(
                 deviceSensors.map(async (ds) => {
                     const latestReading = await SensorReading.findOne({
-                        where: { device_sensor_id: ds.id },
+                        where: {device_sensor_id: ds.id},
                         order: [["time", "DESC"]],
                     })
 
@@ -199,20 +199,21 @@ function createRouter(io) {
             res.json(readings)
         } catch (error) {
             console.error("❌ Error fetching sensor readings for device:", error.message)
-            res.status(500).json({ error: "Failed to fetch sensor readings" })
+            res.status(500).json({error: "Failed to fetch sensor readings"})
         }
     })
 
     // Add a new sensor reading
     router.post("/sensor-readings", async (req, res) => {
         try {
-            const {time, device_sensor_id, value} = req.body
+            const {device_sensor_id, time, value} = req.body
             const newReading = await SensorReading.create({time, device_sensor_id, value})
 
             console.log(`✅ Created sensor reading: ${device_sensor_id} => ${value} at ${time}`)
 
             // Emit WebSocket event to subscribers of this device
-            io.to(`device-${device_sensor_id}`).emit("sensor-update", {device_sensor_id, time, value})
+            const room = `device-${device_sensor_id}`;
+            io.to(room).emit("sensor-update", {device_sensor_id, time, value})
 
             res.status(201).json(newReading)
         } catch (error) {

@@ -7,9 +7,10 @@ function setupWebSocket(server) {
         console.log("🔌 New client connected");
 
         // Subscribe clients to specific device updates
-        socket.on("subscribeToDevice", (deviceId) => {
-            console.log(`📡 Client subscribed to device-${deviceId}`);
-            socket.join(`device-${deviceId}`);
+        socket.on("subscribeToDevice", (room) => {
+            console.log(`📡 Client subscribed to ${room}`);
+            socket.join(room);
+
         });
 
         socket.on("disconnect", () => {
