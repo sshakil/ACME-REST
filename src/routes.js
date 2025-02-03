@@ -1,5 +1,6 @@
 const express = require("express")
 const {Device, Sensor, DeviceSensor, SensorReading} = require("./models")
+const { Sequelize } = require("sequelize")
 
 function createRouter(io) {
     const router = express.Router()
@@ -34,10 +35,13 @@ function createRouter(io) {
         })
 
     // 🔧 Utility: Fetch records by field (e.g., device-sensor mappings for a device)
-    const getRecordsByField = (model, entityName, field) =>
+    const getRecordsByField = (model, entityName, field, options = {}) =>
         handleAsync(async (req, res) => {
             const value = req.params[field]
-            const records = await model.findAll({where: {[field]: value}})
+            const records = await model.findAll({
+                where: {[field]: value},
+                ...options
+            })
             if (!records.length) return res.sendStatus(204)
             logAction("Fetched", `${entityName} by ${field}`, value)
             res.json(records)
@@ -79,6 +83,47 @@ function createRouter(io) {
     router.delete("/device-sensor/:id", deleteRecord(DeviceSensor, "device-sensor mapping"))
 
     /** 🚀 Sensor Readings Endpoints */
+
+    // 🚀 Fetch latest sensor readings for all sensors of a given device
+    router.get("/sensor-readings/:device_id", handleAsync(async (req, res) => {
+        const { device_id } = req.params
+
+        // Ensure `device_id` is a valid number
+        if (isNaN(device_id)) {
+            return res.status(400).json({ error: "Invalid device_id parameter" })
+        }
+
+        // Fetch latest sensor readings for the given device
+        const sensorReadings = await SensorReading.findAll({
+            attributes: [
+                "device_sensor_id",
+                [Sequelize.fn("MAX", Sequelize.col("time")), "time"], // Get latest timestamp per sensor
+                "value",
+                [Sequelize.col("DeviceSensor.sensor.type"), "type"],
+                [Sequelize.col("DeviceSensor.sensor.unit"), "unit"]
+            ],
+            include: [
+                {
+                    model: DeviceSensor,
+                    required: true,
+                    include: [
+                        {
+                            model: Sensor,
+                            as: "sensor",
+                            required: true
+                        }
+                    ]
+                }
+            ],
+            where: {
+                "$DeviceSensor.device_id$": device_id
+            },
+            group: ["device_sensor_id", "value", "DeviceSensor.id", "DeviceSensor.sensor.id", "DeviceSensor.sensor.type", "DeviceSensor.sensor.unit"]
+        })
+
+        res.json(sensorReadings)
+    }))
+
     router.post("/sensor-reading", handleAsync(async (req, res) => {
         const {device_sensor_id, time, value, no_validation, no_response_body} = req.body
 
