@@ -45,6 +45,9 @@ function createSensorReadingRoutes(io) {
             },
         })
 
+        logAction("Fetched", "sensor readings", `for device ${device_id}`)
+        console.log("")
+
         res.json(sensorReadings.map(reading => ({
             device_sensor_id: reading.device_sensor_id,
             time: reading.time,
@@ -78,6 +81,7 @@ function createSensorReadingRoutes(io) {
         }
 
         logAction("Processed", "sensor reading", `Device-Sensor ${device_sensor_id} => ${value}, added: ${added}, ${message}`)
+        console.log("")
 
         emitEvent(io, "sensor-update", `device-sensor-id-${device_sensor_id}`, {
             device_sensor_id,
@@ -87,6 +91,8 @@ function createSensorReadingRoutes(io) {
             ...(added ? {} : { message })
         })
 
+        console.log("")
+
         if (no_response_body) return res.sendStatus(201)
         res.status(201).json({ device_sensor_id, time: timestamp, value, added, ...(added ? {} : { message }) })
     }))
@@ -95,7 +101,10 @@ function createSensorReadingRoutes(io) {
         const { id } = req.params
         const deleted = await SensorReading.destroy({ where: { id } })
         if (!deleted) return res.status(404).json({ error: "Sensor reading not found" })
+
         logAction("Deleted", "sensor reading", id)
+        console.log("")
+
         res.sendStatus(204)
     }))
 

@@ -6,6 +6,7 @@ const handleAsync = (fn) => async (req, res) => {
         await fn(req, res)
     } catch (error) {
         console.error(`❌ Error in ${req.method} ${req.originalUrl}:`, error.message)
+        console.log("")
         res.status(500).json({ error: "Internal server error" })
     }
 }
@@ -13,8 +14,10 @@ const handleAsync = (fn) => async (req, res) => {
 /**
  * Logs an action performed on an entity.
  */
-const logAction = (action, entity, details = "") =>
+const logAction = (action, entity, details = "") => {
     console.log(`✅ ${action} ${entity}${details ? `: ${details}` : ""}`)
+    console.log("")
+}
 
 /**
  * Emits a WebSocket event to a specific room.
@@ -22,6 +25,7 @@ const logAction = (action, entity, details = "") =>
 const emitEvent = (io, event, room, data) => {
     io.to(room).emit(event, data)
     console.log(`📡 Emitted "${event}" to ${room}`)
+    console.log("")
 }
 
 /**
@@ -32,6 +36,7 @@ const getAllRecords = (model, entityName) =>
         const records = await model.findAll()
         if (!records.length) return res.sendStatus(204)
         logAction("Fetched", entityName, `${records.length} records`)
+        console.log("")
         res.json(records)
     })
 
@@ -47,6 +52,7 @@ const getRecordsByField = (model, entityName, field, options = {}) =>
         })
         if (!records.length) return res.sendStatus(204)
         logAction("Fetched", `${entityName} by ${field}`, value)
+        console.log("")
         res.json(records)
     })
 
@@ -58,6 +64,7 @@ const createRecord = (io, model, entityName, eventName) =>
         const record = await model.create(req.body)
         logAction("Created", entityName, JSON.stringify(req.body))
         io.emit(eventName, record)
+        console.log("")
         res.status(201).json(record)
     })
 
@@ -70,6 +77,7 @@ const deleteRecord = (model, entityName) =>
         const deleted = await model.destroy({ where: { id } })
         if (!deleted) return res.status(404).json({ error: `${entityName} not found` })
         logAction("Deleted", entityName, id)
+        console.log("")
         res.sendStatus(204)
     })
 
