@@ -206,21 +206,85 @@ function createRouter(io) {
     // Add a new sensor reading
     router.post("/sensor-reading", async (req, res) => {
         try {
-            const {device_sensor_id, time, value} = req.body
-            const newReading = await SensorReading.create({time, device_sensor_id, value})
+            const { device_sensor_id, time, value, no_validation, no_response_body } = req.body
 
+            if (!no_validation) {
+                const exists = await DeviceSensor.findByPk(device_sensor_id)
+                if (!exists) {
+                    console.warn(`⚠️ Validation failed: device_sensor_id ${device_sensor_id} not found`)
+                    return res.status(400).json({ error: "Invalid device_sensor_id" })
+                }
+            }
+
+            const newReading = await SensorReading.create({ time, device_sensor_id, value })
             console.log(`✅ Created sensor reading: ${device_sensor_id} => ${value} at ${time}`)
 
-            // Emit WebSocket event to subscribers of this device
-            const room = `device-${device_sensor_id}`
-            io.to(room).emit("sensor-update", {device_sensor_id, time, value})
+            // Emit WebSocket event
+            const room = `device-sensor-id-${device_sensor_id}`
+            io.to(room).emit("sensor-update", { device_sensor_id, time, value })
+            console.log(`📡 Emitted "sensor-update" to ${room}`)
 
+            if (no_response_body) return res.sendStatus(201)
             res.status(201).json(newReading)
         } catch (error) {
             console.error("❌ Error creating sensor reading:", error.message)
-            res.status(500).json({error: "Failed to create sensor reading"})
+            res.status(500).json({ error: "Failed to create sensor reading" })
         }
     })
+
+    // Bulk add sensor readings for a specific device
+    router.post("/sensor-readings/:device_id", async (req, res) => {
+        try {
+            const { device_id } = req.params
+            const { readings, no_validation, no_response_body } = req.body
+
+            if (!Array.isArray(readings) || readings.length === 0) {
+                return res.status(400).json({ error: "Readings must be a non-empty array" })
+            }
+
+            let validMappings = new Set()
+            if (!no_validation) {
+                const mappings = await DeviceSensor.findAll({ where: { device_id } })
+                validMappings = new Set(mappings.map(m => m.id))
+            }
+
+            const results = []
+            const createdReadings = []
+
+            for (const { device_sensor_id, time, value } of readings) {
+                let added = true
+                let reason = ""
+
+                if (!no_validation && !validMappings.has(device_sensor_id)) {
+                    added = false
+                    reason = "invalid_mapping"
+                }
+
+                if (added) {
+                    const reading = await SensorReading.create({ time, device_sensor_id, value })
+                    createdReadings.push(reading)
+                }
+
+                results.push({ device_sensor_id, time, value, added, reason })
+            }
+
+            console.log(`✅ Processed ${readings.length} readings for device ${device_id}`)
+
+            // Emit bulk WebSocket event
+            io.to(`device-id-${device_id}`).emit("sensors-update", {
+                device_id,
+                readings: results
+            })
+            console.log(`📡 Emitted "sensors-update" to device-id-${device_id}`)
+
+            if (no_response_body) return res.sendStatus(201)
+            res.status(201).json(results)
+        } catch (error) {
+            console.error("❌ Error processing sensor readings:", error.message)
+            res.status(500).json({ error: "Failed to process sensor readings" })
+        }
+    })
+
 
     // Delete a sensor reading
     router.delete("/sensor-reading/:id", async (req, res) => {
