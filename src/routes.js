@@ -109,7 +109,7 @@ function createRouter(io) {
     })
 
     // Map a sensor to a device
-    router.post("/device-sensors", async (req, res) => {
+    router.post("/device-sensor", async (req, res) => {
         try {
             const {device_id, sensor_id} = req.body
             const mapping = await DeviceSensor.create({device_id, sensor_id})
@@ -127,7 +127,7 @@ function createRouter(io) {
     })
 
     // Remove a device-sensor mapping
-    router.delete("/device-sensors/:id", async (req, res) => {
+    router.delete("/device-sensor/:id", async (req, res) => {
         try {
             const {id} = req.params
             await DeviceSensor.destroy({where: {id}})
@@ -141,7 +141,7 @@ function createRouter(io) {
 
     /** 🚀 Sensor Readings Endpoints */
 
-    // Get all sensor readings (with optional filtering)
+    // Get all readings for a particular device sensor (with optional filtering)
     router.get("/sensor-readings", async (req, res) => {
         try {
             const {device_sensor_id} = req.query
@@ -156,8 +156,8 @@ function createRouter(io) {
         }
     })
 
-    // Get latest sensor readings for all sensors of a given device
-    router.get("/device-sensor-readings", async (req, res) => {
+    // Get latest sensors reading for all sensors of a given device
+    router.get("/latest-sensors-reading", async (req, res) => {
         try {
             const {device_id} = req.query
             if (!device_id) {
@@ -204,7 +204,7 @@ function createRouter(io) {
     })
 
     // Add a new sensor reading
-    router.post("/sensor-readings", async (req, res) => {
+    router.post("/sensor-reading", async (req, res) => {
         try {
             const {device_sensor_id, time, value} = req.body
             const newReading = await SensorReading.create({time, device_sensor_id, value})
@@ -223,7 +223,7 @@ function createRouter(io) {
     })
 
     // Delete a sensor reading
-    router.delete("/sensor-readings/:id", async (req, res) => {
+    router.delete("/sensor-reading/:id", async (req, res) => {
         try {
             const {id} = req.params
             await SensorReading.destroy({where: {id}})
