@@ -22,7 +22,7 @@ const logAction = (action, entity, details = "") => {
 /**
  * Emits a WebSocket event to a specific room.
  */
-const emitEvent = (io, event, room, data) => {
+const emitEvent = (io) => (event, room, data) => {
     io.to(room).emit(event, data)
     console.log(`📡 Emitted "${event}" to ${room}`)
     console.log("")
@@ -36,7 +36,6 @@ const getAllRecords = (model, entityName) =>
         const records = await model.findAll()
         if (!records.length) return res.sendStatus(204)
         logAction("Fetched", entityName, `${records.length} records`)
-        console.log("")
         res.json(records)
     })
 
@@ -52,19 +51,20 @@ const getRecordsByField = (model, entityName, field, options = {}) =>
         })
         if (!records.length) return res.sendStatus(204)
         logAction("Fetched", `${entityName} by ${field}`, value)
-        console.log("")
         res.json(records)
     })
 
 /**
  * Creates a new record in the database and emits an event.
  */
-const createRecord = (io, model, entityName, eventName) =>
+const createRecord = (io) => (model, entityName, eventName) =>
     handleAsync(async (req, res) => {
         const record = await model.create(req.body)
         logAction("Created", entityName, JSON.stringify(req.body))
-        io.emit(eventName, record)
+
+        emitEvent(io)(eventName, "global", record)
         console.log("")
+
         res.status(201).json(record)
     })
 
@@ -81,12 +81,15 @@ const deleteRecord = (model, entityName) =>
         res.sendStatus(204)
     })
 
-module.exports = {
+/**
+ * Exports the base route utilities, ensuring `io` is passed correctly.
+ */
+module.exports = (io) => ({
     handleAsync,
     logAction,
-    emitEvent,
+    emitEvent: emitEvent(io),
     getAllRecords,
     getRecordsByField,
-    createRecord,
+    createRecord: createRecord(io),
     deleteRecord
-}
+})

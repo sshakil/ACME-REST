@@ -1,12 +1,19 @@
 const express = require("express")
 const { Sensor } = require("../models")
-const { getAllRecords, createRecord, deleteRecord } = require("./baseRoutes")
 
+/**
+ * Creates and configures the sensor routes.
+ *
+ * @param {import("socket.io").Server} io - Socket.IO instance for real-time events.
+ * @returns {express.Router} The configured Express router.
+ */
 function createSensorRoutes(io) {
+    const { getAllRecords, createRecord, deleteRecord } = require("./baseRoutes")(io)
+
     const router = express.Router()
 
     router.get("/", getAllRecords(Sensor, "sensors"))
-    router.post("/", createRecord(io, Sensor, "sensor", "sensor-created"))
+    router.post("/", createRecord(Sensor, "sensor", "sensor-created"))
     router.delete("/:id", deleteRecord(Sensor, "sensor"))
 
     return router

@@ -8,7 +8,7 @@ const createSensorReadingRoutes = require("./sensorReadings")
  * Creates and configures the main router.
  *
  * @param {import("socket.io").Server} io - Socket.IO instance for real-time events.
- * @returns {Router} The configured Express router.
+ * @returns {express.Router} The configured Express router.
  */
 function createRouter(io) {
     const router = express.Router()

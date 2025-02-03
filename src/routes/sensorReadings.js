@@ -1,10 +1,39 @@
 const express = require("express")
 const { SensorReading, DeviceSensor, Sensor } = require("../models")
 const { Sequelize } = require("sequelize")
-const { handleAsync, logAction, emitEvent } = require("./baseRoutes")
 
+/**
+ * Creates and configures the sensor readings router.
+ *
+ * @param {import("socket.io").Server} io - Socket.IO instance for real-time events.
+ * @returns {express.Router} The configured Express router.
+ */
 function createSensorReadingRoutes(io) {
+    const { handleAsync, logAction, emitEvent } = require("./baseRoutes")(io)
+
     const router = express.Router()
+
+    // 🔧 Utility: Process and create multiple sensor readings efficiently
+    const processSensorReadings = async (device_id, readings, no_validation) => {
+        let validMappings = new Set()
+        if (!no_validation) {
+            const mappings = await DeviceSensor.findAll({ where: { device_id } })
+            validMappings = new Set(mappings.map(m => m.id))
+        }
+
+        const timestamp = new Date().toISOString()
+
+        return readings.map(({ device_sensor_id, time, value }) => {
+            const added = no_validation || validMappings.has(device_sensor_id)
+            const message = added ? (time ? "used device time" : "used server time") : "invalid_mapping"
+
+            if (added) {
+                SensorReading.create({ time: time || timestamp, device_sensor_id, value })
+            }
+
+            return { device_sensor_id, time: time || timestamp, value, added, ...(added ? {} : { message }) }
+        })
+    }
 
     router.get("/:device_id", handleAsync(async (req, res) => {
         const { device_id } = req.params
@@ -46,7 +75,6 @@ function createSensorReadingRoutes(io) {
         })
 
         logAction("Fetched", "sensor readings", `for device ${device_id}`)
-        console.log("")
 
         res.json(sensorReadings.map(reading => ({
             device_sensor_id: reading.device_sensor_id,
@@ -55,6 +83,32 @@ function createSensorReadingRoutes(io) {
             type: reading.dataValues.type || "Unknown",
             unit: reading.dataValues.unit || "Unknown"
         })))
+    }))
+
+    router.post("/:device_id", handleAsync(async (req, res) => {
+        const { device_id } = req.params
+        const { readings, no_validation, no_response_body } = req.body
+
+        if (!Array.isArray(readings) || !readings.length) {
+            return res.status(400).json({ error: "Readings must be a non-empty array" })
+        }
+
+        let processedReadings
+        if (!no_response_body) {
+            processedReadings = await Promise.all(await processSensorReadings(device_id, readings, no_validation))
+        } else {
+            await Promise.all(await processSensorReadings(device_id, readings, no_validation))
+        }
+
+        logAction("Processed", `bulk sensor readings for device ${device_id}`, `${readings.length} readings`)
+
+        emitEvent("sensors-update", `device-id-${device_id}`, {
+            device_id,
+            ...(no_response_body ? {} : { readings: processedReadings })
+        })
+
+        if (no_response_body) return res.sendStatus(201)
+        res.status(201).json(processedReadings)
     }))
 
     router.post("/", handleAsync(async (req, res) => {
@@ -83,7 +137,7 @@ function createSensorReadingRoutes(io) {
         logAction("Processed", "sensor reading", `Device-Sensor ${device_sensor_id} => ${value}, added: ${added}, ${message}`)
         console.log("")
 
-        emitEvent(io, "sensor-update", `device-sensor-id-${device_sensor_id}`, {
+        emitEvent("sensor-update", `device-sensor-id-${device_sensor_id}`, {
             device_sensor_id,
             time: timestamp,
             value,

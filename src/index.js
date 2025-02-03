@@ -1,9 +1,12 @@
 const express = require("express")
 const cors = require("cors")
 const { sequelize } = require("./models")
-const createRouter = require("./routes")
 const http = require("http")
 const setupWebSocket = require("./websocket")
+const createDeviceRoutes = require("./routes/devices")
+const createSensorRoutes = require("./routes/sensors")
+const createDeviceSensorRoutes = require("./routes/deviceSensors")
+const createSensorReadingRoutes = require("./routes/sensorReadings")
 
 const app = express()
 app.use(cors({ origin: "*" }))
@@ -12,8 +15,10 @@ app.use(express.json())
 const server = http.createServer(app)
 const io = setupWebSocket(server)
 
-const router = createRouter(io)
-app.use("/api", router)
+app.use("/acme/devices", createDeviceRoutes(io))
+app.use("/acme/sensors", createSensorRoutes(io))
+app.use("/acme/device-sensors", createDeviceSensorRoutes(io))
+app.use("/acme/sensor-readings", createSensorReadingRoutes(io))
 
 async function checkDatabaseHealth() {
     try {
