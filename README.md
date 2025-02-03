@@ -16,7 +16,7 @@ npx sequelize-cli init
 # udpate config.json with actual db settings
 npx sequelize-cli migration:generate --name create-schema
 # created src/
-# created src/index.js src/db.js src/routes.js src/websocket.js src/models .env (with db settings corresponding to config/config.js) .gitignore
+# created src/index.js src/db.js src/index.js src/websocket.js src/models .env (with db settings corresponding to config/config.js) .gitignore
 # filled in migrations/**-create-schema.js
 npx sequelize-cli db:migrate
 
