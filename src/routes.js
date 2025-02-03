@@ -86,18 +86,16 @@ function createRouter(io) {
 
     // 🚀 Fetch latest sensor readings for all sensors of a given device
     router.get("/sensor-readings/:device_id", handleAsync(async (req, res) => {
-        const { device_id } = req.params
+        const { device_id } = req.params;
 
-        // Ensure `device_id` is a valid number
         if (isNaN(device_id)) {
-            return res.status(400).json({ error: "Invalid device_id parameter" })
+            return res.status(400).json({ error: "Invalid device_id parameter" });
         }
 
-        // Fetch latest sensor readings for the given device
         const sensorReadings = await SensorReading.findAll({
             attributes: [
                 "device_sensor_id",
-                [Sequelize.fn("MAX", Sequelize.col("time")), "time"], // Get latest timestamp per sensor
+                "time",
                 "value",
                 [Sequelize.col("DeviceSensor.sensor.type"), "type"],
                 [Sequelize.col("DeviceSensor.sensor.unit"), "unit"]
@@ -105,23 +103,37 @@ function createRouter(io) {
             include: [
                 {
                     model: DeviceSensor,
+                    attributes: [],
                     required: true,
                     include: [
                         {
                             model: Sensor,
                             as: "sensor",
-                            required: true
+                            attributes: []
                         }
                     ]
                 }
             ],
             where: {
+                time: {
+                    [Sequelize.Op.eq]: Sequelize.literal(
+                        `(SELECT MAX(sr.time) FROM sensor_readings sr WHERE sr.device_sensor_id = "SensorReading"."device_sensor_id")`
+                    )
+                },
                 "$DeviceSensor.device_id$": device_id
             },
-            group: ["device_sensor_id", "value", "DeviceSensor.id", "DeviceSensor.sensor.id", "DeviceSensor.sensor.type", "DeviceSensor.sensor.unit"]
-        })
+        });
 
-        res.json(sensorReadings)
+        // Transform response
+        const cleanedReadings = sensorReadings.map(reading => ({
+            device_sensor_id: reading.device_sensor_id,
+            time: reading.time,
+            value: reading.value,
+            type: reading.dataValues.type || "Unknown",
+            unit: reading.dataValues.unit || "Unknown"
+        }));
+
+        res.json(cleanedReadings);
     }))
 
     router.post("/sensor-reading", handleAsync(async (req, res) => {
