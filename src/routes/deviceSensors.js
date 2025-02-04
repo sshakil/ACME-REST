@@ -7,17 +7,17 @@ const { DeviceSensor } = require("../models")
  * @param {import("socket.io").Server} io - Socket.IO instance for real-time events.
  * @returns {express.Router} The configured Express router.
  */
-function createDeviceSensorRoutes(io) {
+function deviceSensorsRoutes(io) {
     const { getAllRecords, getRecordsByField, createRecord, deleteRecord } = require("./baseRoutes")(io)
 
     const router = express.Router()
 
-    router.get("/", getAllRecords(DeviceSensor, "device-sensor mappings"))
-    router.get("/:device_id", getRecordsByField(DeviceSensor, "device-sensor mappings", "device_id"))
-    router.post("/", createRecord(DeviceSensor, "device-sensor mapping", "device-sensor-mapped"))
-    router.delete("/:id", deleteRecord(DeviceSensor, "device-sensor mapping"))
+    router.get("/", getAllRecords(DeviceSensor, "device-sensors"))
+    router.get("/:device_id", getRecordsByField(DeviceSensor, "device-sensors", "device_id"))
+    router.post("/", createRecord(DeviceSensor, "device-sensor ", "device-sensor-mapped"))
+    router.delete("/:id", deleteRecord(DeviceSensor, "device-sensor"))
 
     return router
 }
 
-module.exports = createDeviceSensorRoutes
+module.exports = deviceSensorsRoutes

@@ -8,7 +8,7 @@ const { Sequelize } = require("sequelize")
  * @param {import("socket.io").Server} io - Socket.IO instance for real-time events.
  * @returns {express.Router} The configured Express router.
  */
-function createSensorReadingRoutes(io) {
+function sensorReadingsRoutes(io) {
     const { handleAsync, logAction, emitEvent } = require("./baseRoutes")(io)
 
     const router = express.Router()
@@ -165,4 +165,4 @@ function createSensorReadingRoutes(io) {
     return router
 }
 
-module.exports = createSensorReadingRoutes
+module.exports = sensorReadingsRoutes

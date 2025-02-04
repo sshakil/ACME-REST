@@ -1,8 +1,8 @@
 const express = require("express")
-const createDeviceRoutes = require("./devices")
-const createSensorRoutes = require("./sensors")
-const createDeviceSensorRoutes = require("./deviceSensors")
-const createSensorReadingRoutes = require("./sensorReadings")
+const devicesRoutes = require("./devices")
+const sensorsRoutes = require("./sensors")
+const deviceSensorsRoutes = require("./deviceSensors")
+const sensorReadingsRoutes = require("./sensorReadings")
 
 /**
  * Creates and configures the main router.
@@ -13,10 +13,10 @@ const createSensorReadingRoutes = require("./sensorReadings")
 function createRouter(io) {
     const router = express.Router()
 
-    router.use("/devices", createDeviceRoutes(io))
-    router.use("/sensors", createSensorRoutes(io))
-    router.use("/device-sensors", createDeviceSensorRoutes(io))
-    router.use("/sensor-readings", createSensorReadingRoutes(io))
+    router.use("/devices", devicesRoutes(io))
+    router.use("/sensors", sensorsRoutes(io))
+    router.use("/device-sensors", deviceSensorsRoutes(io))
+    router.use("/sensor-readings", sensorReadingsRoutes(io))
 
     return router
 }
