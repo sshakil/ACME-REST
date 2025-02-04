@@ -43,7 +43,7 @@ function setupWebSocket(server) {
     io.on("connection", (socket) => {
         console.log("🔌 [WebSocket] New client connected")
 
-        socket.on("subscribeToDevice", (room) => {
+        socket.on("subscribe", (room) => {
             console.log(`📡 [WebSocket] Client subscribed to ${room}`)
             socket.join(room)
         })

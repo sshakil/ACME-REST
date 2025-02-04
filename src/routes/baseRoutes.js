@@ -88,7 +88,8 @@ const processRecordCreation = async (model, entityName, data, uniqueFields = [])
     return {
         id: record?.id || null,
         time: record?.createdAt || new Date().toISOString(),
-        type: record?.name || record?.type || entityName,
+        ...(record?.name ? { name: record.name } : {}),
+        type: record?.type || entityName,
         added,
         message
     }
@@ -150,14 +151,19 @@ const createRecordsWithoutReqResp = (io) => async (model, entityName, eventName,
 /**
  * Deletes a record by ID.
  */
-const deleteRecord = (model, entityName) =>
+const deleteRecord = (io) => (model, entityName, eventName) =>
     handleAsync(async (req, res) => {
         const { id } = req.params
         const deleted = await model.destroy({ where: { id } })
-        if (!deleted) return res.status(404).json({ error: `${entityName} not found` })
+
+        if (!deleted) {
+            logAction(`Deletion failed for ${entityName} with id ${id}`, entityName)
+            return res.status(404).json({ error: `${entityName} with ${id} not found` })
+        }
         logAction("Deleted", entityName, id)
-        console.log("")
-        res.sendStatus(204)
+        emitEvent(io)(eventName, entityName, { id: id })
+
+        res.status(200).send()
     })
 
 /**
@@ -172,5 +178,5 @@ module.exports = (io) => ({
     createRecord: createRecord(io),
     createRecords: createRecords(io),
     createRecordsWithoutReqResp: createRecordsWithoutReqResp(io),
-    deleteRecord
+    deleteRecord: deleteRecord(io),
 })

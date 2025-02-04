@@ -30,7 +30,12 @@ function devicesRoutes(io) {
 
         try {
             // Step 1: Create sensors without handling HTTP response
-            const createdSensors = await createRecordsWithoutReqResp(Sensor, "sensor", "sensors-created", ["type", "unit"], sensorList)
+            const createdSensors = await createRecordsWithoutReqResp(
+                Sensor, "sensor",
+                "sensors-created",
+                ["type", "unit"],
+                sensorList
+            )
 
             if (!Array.isArray(createdSensors) || !createdSensors.length) {
                 return res.status(500).json({ error: "Failed to create sensors" })
@@ -43,7 +48,12 @@ function devicesRoutes(io) {
             }))
 
             // Step 3: Create device-sensor mappings
-            const createdMappings = await createRecordsWithoutReqResp(DeviceSensor, "device-sensor", "device-sensors-created", ["device_id", "sensor_id"], deviceSensorMappings)
+            const createdMappings = await createRecordsWithoutReqResp(
+                DeviceSensor, "device-sensor",
+                "device-sensors-created",
+                ["device_id", "sensor_id"],
+                deviceSensorMappings
+            )
 
             if (!Array.isArray(createdMappings) || !createdMappings.length) {
                 return res.status(500).json({ error: "Failed to create device-sensor mappings" })
@@ -61,7 +71,7 @@ function devicesRoutes(io) {
     }))
 
 
-    router.delete("/:id", deleteRecord(Device, "device"))
+    router.delete("/:id", deleteRecord(Device, "device", "device-deleted"))
 
     return router
 }
