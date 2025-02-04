@@ -19,6 +19,7 @@ app.use("/acme/devices", createDeviceRoutes(io))
 app.use("/acme/sensors", createSensorRoutes(io))
 app.use("/acme/device-sensors", createDeviceSensorRoutes(io))
 app.use("/acme/sensor-readings", createSensorReadingRoutes(io))
+app.get('/health', (req, res) => res.sendStatus(200))
 
 async function checkDatabaseHealth() {
     try {
