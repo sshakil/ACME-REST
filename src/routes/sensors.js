@@ -13,7 +13,10 @@ function sensorsRoutes(io) {
     const router = express.Router()
 
     router.get("/", getAllRecords(Sensor, "sensors"))
+
+    // TODO: unused - remove or support on CLI
     router.post("/", createRecord(Sensor, "sensor", "sensor-created", ["type"]))
+
     router.delete("/:id", deleteRecord(Sensor, "sensor"))
 
     return router
