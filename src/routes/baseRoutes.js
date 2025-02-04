@@ -1,9 +1,9 @@
 /**
  * Wraps an asynchronous function with error handling.
  */
-const handleAsync = (fn) => async (req, res) => {
+const handleAsync = (fn) => async (req, res, next) => {
     try {
-        await fn(req, res)
+        await fn(req, res, next)
     } catch (error) {
         console.error(`❌ Error in ${req.method} ${req.originalUrl}:`, error.message)
         console.log("")
@@ -23,9 +23,13 @@ const logAction = (action, entity, details = "") => {
  * Emits a WebSocket event to a specific room.
  */
 const emitEvent = (io) => (event, room, data) => {
-    io.to(room).emit(event, data)
-    console.log(`📡 Emitted "${event}" to ${room}`)
-    console.log("")
+    try {
+        io.to(room).emit(event, data)
+        console.log(`📡 Emitted "${event}" to ${room}`);
+        console.log("")
+    } catch (err) {
+        console.error(`❌ Failed to emit event "${event}" to ${room}:`, err);
+    }
 }
 
 /**
@@ -82,7 +86,7 @@ const processRecordCreation = async (model, entityName, data, uniqueFields = [])
     }
 
     return {
-        sensor_id: record?.id || null,
+        id: record?.id || null,
         time: record?.createdAt || new Date().toISOString(),
         type: record?.name || record?.type || entityName,
         added,
@@ -94,13 +98,11 @@ const processRecordCreation = async (model, entityName, data, uniqueFields = [])
  * Creates a new record in the database and emits an event.
  */
 const createRecord = (io) => (model, entityName, eventName, uniqueFields = []) =>
-    handleAsync(async (req, res, noHTTPResponse = false) => {
+    handleAsync(async (req, res) => {
         const responseData = await processRecordCreation(model, entityName, req.body, uniqueFields)
 
-        logAction(responseData.added ? "Created" : "Skipped", entityName, JSON.stringify(responseData))
+        logAction(responseData.added ? "Created" : "Skipped creating", entityName, JSON.stringify(responseData))
         emitEvent(io)(eventName, entityName, responseData)
-
-        if (noHTTPResponse) return responseData
 
         // If an error occurred, send a 500 response
         if (!responseData.added && responseData.message !== "pre-existed") {
@@ -114,7 +116,7 @@ const createRecord = (io) => (model, entityName, eventName, uniqueFields = []) =
  * Creates multiple new records in the database and emits an event for each.
  */
 const createRecords = (io) => (model, entityName, eventName, uniqueFields = []) =>
-    handleAsync(async (req, res, noHTTPResponse = false) => {
+    handleAsync(async (req, res) => {
         if (!Array.isArray(req.body)) {
             return res.status(400).json({ error: "Request body must be an array of objects" })
         }
@@ -126,10 +128,24 @@ const createRecords = (io) => (model, entityName, eventName, uniqueFields = []) 
             emitEvent(io)(eventName, entityName, responseData)
         })
 
-        if (noHTTPResponse) return results
-
         res.status(201).json(results)
     })
+
+const createRecordsWithoutReqResp = (io) => async (model, entityName, eventName, uniqueFields = [], records) => {
+    if (!Array.isArray(records) || !records.length) {
+        throw new Error("Input must be a non-empty array of objects")
+    }
+
+    let results = await Promise.all(records.map(item => processRecordCreation(model, entityName, item, uniqueFields)))
+
+    results.forEach(responseData => {
+        logAction(responseData.added ? "Created" : "Skipped", entityName, JSON.stringify(responseData))
+        emitEvent(io)(eventName, entityName, responseData)
+    })
+
+    return results
+}
+
 
 /**
  * Deletes a record by ID.
@@ -155,5 +171,6 @@ module.exports = (io) => ({
     getRecordsByField,
     createRecord: createRecord(io),
     createRecords: createRecords(io),
+    createRecordsWithoutReqResp: createRecordsWithoutReqResp(io),
     deleteRecord
 })

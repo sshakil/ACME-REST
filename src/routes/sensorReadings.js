@@ -15,15 +15,21 @@ function sensorReadingsRoutes(io) {
 
     // 🔧 Utility: Process and create multiple sensor readings efficiently
     const processSensorReadings = async (device_id, readings, no_validation) => {
-        let validMappings = new Set()
+        let validMappings = new Map()
+
         if (!no_validation) {
-            const mappings = await DeviceSensor.findAll({ where: { device_id } })
-            validMappings = new Set(mappings.map(m => m.id))
+            const mappings = await DeviceSensor.findAll({
+                where: { device_id },
+                include: [{ model: Sensor, as: "sensor", attributes: ["type", "unit"] }]
+            })
+
+            mappings.forEach(m => validMappings.set(m.id, { type: m.sensor.type, unit: m.sensor.unit }))
         }
 
         const timestamp = new Date().toISOString()
 
         return readings.map(({ device_sensor_id, time, value }) => {
+            const mapping = validMappings.get(device_sensor_id) || { type: "Unknown", unit: "Unknown" }
             const added = no_validation || validMappings.has(device_sensor_id)
             const message = added ? (time ? "used device time" : "used server time") : "invalid_mapping"
 
@@ -31,7 +37,7 @@ function sensorReadingsRoutes(io) {
                 SensorReading.create({ time: time || timestamp, device_sensor_id, value })
             }
 
-            return { device_sensor_id, time: time || timestamp, value, added, ...(added ? {} : { message }) }
+            return { device_sensor_id, time: time || timestamp, value, added, type: mapping.type, unit: mapping.unit, ...(added ? {} : { message }) }
         })
     }
 
@@ -121,11 +127,18 @@ function sensorReadingsRoutes(io) {
         let added = true, message
         const timestamp = time || new Date().toISOString()
 
+        let mapping = { type: "Unknown", unit: "Unknown" }
+
         if (!no_validation) {
-            const exists = await DeviceSensor.findByPk(device_sensor_id)
-            if (!exists) {
+            const deviceSensor = await DeviceSensor.findByPk(device_sensor_id, {
+                include: [{ model: Sensor, as: "sensor", attributes: ["type", "unit"] }]
+            })
+
+            if (!deviceSensor) {
                 added = false
                 message = "invalid_mapping"
+            } else {
+                mapping = { type: deviceSensor.sensor.type, unit: deviceSensor.sensor.unit }
             }
         }
 
@@ -135,20 +148,19 @@ function sensorReadingsRoutes(io) {
         }
 
         logAction("Processed", "sensor reading", `Device-Sensor ${device_sensor_id} => ${value}, added: ${added}, ${message}`)
-        console.log("")
 
         emitEvent("sensor-update", `device-sensor-id-${device_sensor_id}`, {
             device_sensor_id,
             time: timestamp,
             value,
             added,
+            type: mapping.type,
+            unit: mapping.unit,
             ...(added ? {} : { message })
         })
 
-        console.log("")
-
         if (no_response_body) return res.sendStatus(201)
-        res.status(201).json({ device_sensor_id, time: timestamp, value, added, ...(added ? {} : { message }) })
+        res.status(201).json({ device_sensor_id, time: timestamp, value, added, type: mapping.type, unit: mapping.unit, ...(added ? {} : { message }) })
     }))
 
     router.delete("/:id", handleAsync(async (req, res) => {
@@ -157,7 +169,6 @@ function sensorReadingsRoutes(io) {
         if (!deleted) return res.status(404).json({ error: "Sensor reading not found" })
 
         logAction("Deleted", "sensor reading", id)
-        console.log("")
 
         res.sendStatus(204)
     }))
