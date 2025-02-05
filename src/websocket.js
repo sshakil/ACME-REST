@@ -1,9 +1,8 @@
 const {Server} = require("socket.io")
+const config = require("./config")
 
-// Read WebSocket logging level from environment variables
-const wsEmitLogging = process.env.WS_EMIT_LOGGING || "minimal"
 const validLogLevels = ["disabled", "minimal", "verbose"]
-const logLevel = validLogLevels.includes(wsEmitLogging) ? wsEmitLogging : "minimal"
+const logLevel = validLogLevels.includes(config.websocketLogLevel) ? config.websocketLogLevel : "minimal"
 
 function logEmit(event, room, args) {
     if (logLevel === "minimal") {
@@ -49,7 +48,7 @@ function setupWebSocket(server) {
         })
 
         socket.on("disconnect", () => {
-            console.log("❌ [WebSocket] Client disconnected")
+            console.log("🔌 [WebSocket] Client disconnected")
         })
     })
 

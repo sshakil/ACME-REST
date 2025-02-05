@@ -1,11 +1,11 @@
--- Ensure the user exists before creating it
+-- Create user unless it exists
 DO $$ BEGIN
     IF NOT EXISTS (SELECT FROM pg_roles WHERE rolname = 'demo') THEN
         CREATE USER demo WITH PASSWORD 'P@ssword!1' SUPERUSER;
     END IF;
 END $$;
 
--- Ensure the database exists before creating it
+-- Create empty database unless it exists
 DO $$ BEGIN
     IF NOT EXISTS (SELECT FROM pg_database WHERE datname = 'acme') THEN
         CREATE DATABASE acme OWNER demo;
@@ -17,7 +17,7 @@ END $$;
 -- Ensure TimescaleDB extension is enabled
 CREATE EXTENSION IF NOT EXISTS timescaledb;
 
--- Grant privileges to demo
+-- Grant privileges to demo for migrations
 GRANT ALL PRIVILEGES ON DATABASE acme TO demo;
 GRANT ALL ON SCHEMA public TO demo;
 ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON TABLES TO demo;

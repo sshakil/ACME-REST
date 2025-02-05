@@ -1,12 +1,15 @@
-const { Client } = require("pg")
+const {Client} = require("pg")
+const config = require("../config")
 
 const client = new Client({
-    host: process.env.DB_HOST || "acme-db",
-    user: process.env.DB_USER || "demo",
-    password: process.env.DB_PASS || "P@ssword!1",
-    database: process.env.DB_NAME || "acme",
-    port: 5432
+    host: config.host,
+    user: config.username, // needs to be user, not username
+    password: config.password,
+    database: config.database,
+    port: config.port
 })
+
+console.log("🔌 DB Util - Attempting Connection...");
 
 client.connect()
     .then(() => {

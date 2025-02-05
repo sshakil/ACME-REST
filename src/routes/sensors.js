@@ -1,5 +1,5 @@
 const express = require("express")
-const { Sensor } = require("../models")
+const { Sensor } = require("../database/models/definitions")
 
 /**
  * Creates and configures the sensor routes.

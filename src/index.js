@@ -1,6 +1,6 @@
 const express = require("express")
 const cors = require("cors")
-const { sequelize } = require("./models")
+const db = require("./database/connection")
 const http = require("http")
 const setupWebSocket = require("./websocket")
 const createDeviceRoutes = require("./routes/devices")
@@ -25,18 +25,18 @@ async function checkDatabaseHealth() {
     try {
         console.log("🔍 Checking database health...")
 
-        await sequelize.authenticate()
+        await db.authenticate()
         console.log("✅ Database connection is healthy!")
 
-        await sequelize.query("CREATE EXTENSION IF NOT EXISTS timescaledb")
+        await db.query("CREATE EXTENSION IF NOT EXISTS timescaledb")
 
-        const [result] = await sequelize.query(`
+        const [result] = await db.query(`
             SELECT hypertable_name FROM timescaledb_information.hypertables WHERE hypertable_name = 'sensor_readings'
         `)
 
         if (result.length === 0) {
             console.log("🛠️ Converting sensor_readings into a TimescaleDB hypertable...")
-            await sequelize.query(`SELECT create_hypertable('sensor_readings', 'time')`)
+            await db.query(`SELECT create_hypertable('sensor_readings', 'time')`)
             console.log("✅ sensor_readings is now a hypertable!")
         } else {
             console.log("✅ sensor_readings is already a hypertable.")
@@ -75,7 +75,7 @@ async function initializeApp() {
 
 process.on("SIGINT", async () => {
     console.log("🔌 Closing database connection...")
-    await sequelize.close()
+    await db.close()
     console.log("✅ Database connection closed.")
     process.exit(0)
 })

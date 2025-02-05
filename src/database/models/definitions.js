@@ -1,8 +1,8 @@
 const { DataTypes } = require("sequelize")
-const sequelize = require("./db")
+const db = require("../connection")
 
 // Devices Table (Explicit table name set to "devices")
-const Device = sequelize.define("Device", {
+const Device = db.define("Device", {
     id: { type: DataTypes.INTEGER, primaryKey: true, autoIncrement: true },
     name: { type: DataTypes.TEXT, allowNull: false },
     type: { type: DataTypes.TEXT, allowNull: false },
@@ -17,7 +17,7 @@ const Device = sequelize.define("Device", {
 })
 
 // Sensors Table
-const Sensor = sequelize.define("Sensor", {
+const Sensor = db.define("Sensor", {
     id: { type: DataTypes.INTEGER, primaryKey: true, autoIncrement: true },
     type: { type: DataTypes.TEXT, allowNull: false, unique: true },
     unit: { type: DataTypes.TEXT, allowNull: false },
@@ -32,7 +32,7 @@ const Sensor = sequelize.define("Sensor", {
 })
 
 // Device_Sensors (Maps Sensors to Devices - Many-to-Many)
-const DeviceSensor = sequelize.define("DeviceSensor", {
+const DeviceSensor = db.define("DeviceSensor", {
     id: { type: DataTypes.INTEGER, primaryKey: true, autoIncrement: true },
     device_id: { type: DataTypes.INTEGER, references: { model: Device, key: "id" }, onDelete: "CASCADE" },
     sensor_id: { type: DataTypes.INTEGER, references: { model: Sensor, key: "id" }, onDelete: "CASCADE" }
@@ -46,7 +46,7 @@ const DeviceSensor = sequelize.define("DeviceSensor", {
 })
 
 // Sensor Readings Table (Hypertable in TimescaleDB)
-const SensorReading = sequelize.define("SensorReading", {
+const SensorReading = db.define("SensorReading", {
     time: { type: DataTypes.DATE, allowNull: false, primaryKey: true },
     device_sensor_id: {
         type: DataTypes.INTEGER,
@@ -75,4 +75,4 @@ Sensor.hasMany(DeviceSensor, { foreignKey: "sensor_id", onDelete: "CASCADE" })
 DeviceSensor.hasMany(SensorReading, { foreignKey: "device_sensor_id", onDelete: "CASCADE" })
 SensorReading.belongsTo(DeviceSensor, { foreignKey: "device_sensor_id" })
 
-module.exports = { sequelize, Device, Sensor, DeviceSensor, SensorReading }
+module.exports = { db, Device, Sensor, DeviceSensor, SensorReading }

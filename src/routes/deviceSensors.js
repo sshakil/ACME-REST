@@ -1,5 +1,5 @@
 const express = require("express")
-const { DeviceSensor } = require("../models")
+const { DeviceSensor } = require("../database/models/definitions")
 
 /**
  * Creates and configures the device-sensor routes.
@@ -15,6 +15,8 @@ function deviceSensorsRoutes(io) {
     router.get("/", getAllRecords(DeviceSensor, "device-sensors"))
     router.get("/:device_id", getRecordsByField(DeviceSensor, "device-sensors", "device_id"))
     router.post("/", createRecord(DeviceSensor, "device-sensor ", "device-sensor-mapped"))
+
+    // missing event name
     router.delete("/:id", deleteRecord(DeviceSensor, "device-sensor"))
 
     return router

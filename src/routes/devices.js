@@ -1,6 +1,5 @@
 const express = require("express")
-const {Device, DeviceSensor, Sensor} = require("../models")
-const {createRecords, handleAsync} = require("./baseRoutes");
+const {Device, DeviceSensor, Sensor} = require("../database/models/definitions")
 
 /**
  * Creates and configures the device routes.

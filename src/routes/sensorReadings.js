@@ -1,5 +1,5 @@
 const express = require("express")
-const { SensorReading, DeviceSensor, Sensor } = require("../models")
+const { SensorReading, DeviceSensor, Sensor } = require("../database/models/definitions")
 const { Sequelize } = require("sequelize")
 
 /**
