@@ -25,10 +25,10 @@ const logAction = (action, entity, details = "") => {
 const emitEvent = (io) => (event, room, data) => {
     try {
         io.to(room).emit(event, data)
-        console.log(`📡 Emitted "${event}" to ${room}`);
+        console.log(`📡 Emitted "${event}" to ${room}`)
         console.log("")
     } catch (err) {
-        console.error(`❌ Failed to emit event "${event}" to ${room}:`, err);
+        console.error(`❌ Failed to emit event "${event}" to ${room}:`, err)
     }
 }
 

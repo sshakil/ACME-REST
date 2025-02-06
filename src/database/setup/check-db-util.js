@@ -1,5 +1,5 @@
 const {Client} = require("pg")
-const config = require("../config")
+const config = require("../../config")
 
 const client = new Client({
     host: config.host,
@@ -9,7 +9,7 @@ const client = new Client({
     port: config.port
 })
 
-console.log("🔌 DB Util - Attempting Connection...");
+console.log("🔌 DB Util - Attempting Connection...")
 
 client.connect()
     .then(() => {

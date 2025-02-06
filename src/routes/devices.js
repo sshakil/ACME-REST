@@ -1,24 +1,23 @@
 const express = require("express")
-const {Device, DeviceSensor, Sensor} = require("../database/models/definitions")
+const { getAllRecords, createRecord, createRecords } = require("../database/service")
+const { handleAsync, logAction, emitEvent } = require("./util")
+const {DeviceSensor, Device} = require("../database/models/definitions")
 
-/**
- * Creates and configures the device routes.
- *
- * @param {import("socket.io").Server} io - Socket.IO instance for real-time events.
- * @returns {express.Router} The configured Express router.
- */
-function devicesRoutes(io) {
-    const {getAllRecords, createRecord, createRecords, createRecordsWithoutReqResp,
-        deleteRecord, handleAsync} = require("./baseRoutes")(io)
-
+ function devicesRoutes(io) {
     const router = express.Router()
 
-    router.get("/", getAllRecords(Device, "devices"))
-    router.post("/", createRecord(Device, "device", "device-created"))
+    router.get("/", handleAsync(async (req, res) => {
+        const devices = await getAllRecords(Device)
+        devices ? res.json(devices) : res.sendStatus(204)
+    }))
 
-    /**
-     * Bulk create sensors and map them to a device.
-     */
+    router.post("/", handleAsync(async (req, res) => {
+        const responseData = await createRecord(Device, req.body)
+        logAction("Created", "device", JSON.stringify(responseData))
+        emitEvent(io, "device-created", "devices", responseData)
+        res.status(201).json(responseData)
+    }))
+
     router.post("/:id/sensors", handleAsync(async (req, res) => {
         const { id: device_id } = req.params
         const sensorList = req.body
@@ -28,49 +27,13 @@ function devicesRoutes(io) {
         }
 
         try {
-            // Step 1: Create sensors without handling HTTP response
-            const createdSensors = await createRecordsWithoutReqResp(
-                Sensor, "sensor",
-                "sensors-created",
-                ["type", "unit"],
-                sensorList
-            )
-
-            if (!Array.isArray(createdSensors) || !createdSensors.length) {
-                return res.status(500).json({ error: "Failed to create sensors" })
-            }
-
-            // Step 2: Map sensors to the device
-            const deviceSensorMappings = createdSensors.map(sensor => ({
-                device_id,
-                sensor_id: sensor.id
-            }))
-
-            // Step 3: Create device-sensor mappings
-            const createdMappings = await createRecordsWithoutReqResp(
-                DeviceSensor, "device-sensor",
-                "device-sensors-created",
-                ["device_id", "sensor_id"],
-                deviceSensorMappings
-            )
-
-            if (!Array.isArray(createdMappings) || !createdMappings.length) {
-                return res.status(500).json({ error: "Failed to create device-sensor mappings" })
-            }
-
-            return res.status(201).json({
-                message: "Sensors created and mapped successfully",
-                createdMappings
-            })
-
+            const createdMappings = await createRecords(DeviceSensor, sensorList, ["type", "unit"])
+            return res.status(201).json({ message: "Sensors created and mapped successfully", createdMappings })
         } catch (error) {
-            console.error("❌ Error in POST /acme/devices/:id/sensors:", error)
+            console.error("❌ Error in POST /devices/:id/sensors:", error.message)
             return res.status(500).json({ error: "Internal Server Error" })
         }
     }))
-
-
-    router.delete("/:id", deleteRecord(Device, "device", "device-deleted"))
 
     return router
 }

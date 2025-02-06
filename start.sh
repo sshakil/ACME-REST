@@ -2,7 +2,7 @@
 set -e  # Exit on error
 
 echo "⏳ Waiting for database to be ready..."
-until node src/database/check-db-util.js; do
+until node src/database/setup/check-db-util.js; do
   echo "🔄 Retrying in 2 seconds..."
   sleep 2
 done

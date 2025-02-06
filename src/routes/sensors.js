@@ -1,5 +1,6 @@
 const express = require("express")
 const { Sensor } = require("../database/models/definitions")
+const {handleAsync} = require("./util");
 
 /**
  * Creates and configures the sensor routes.
@@ -8,16 +9,26 @@ const { Sensor } = require("../database/models/definitions")
  * @returns {express.Router} The configured Express router.
  */
 function sensorsRoutes(io) {
-    const { getAllRecords, createRecord, deleteRecord } = require("./baseRoutes")(io)
+    const { getAllRecords, createRecord, deleteRecord } = require("../database/service")
 
     const router = express.Router()
 
-    router.get("/", getAllRecords(Sensor, "sensors"))
+    router.get("/", handleAsync(async (req, res) => {
+        const records = await getAllRecords(Sensor)
+        res.json(records)
+    }))
 
-    // TODO: unused - remove or support on CLI
-    router.post("/", createRecord(Sensor, "sensor", "sensor-created", ["type"]))
+    router.post("/", handleAsync(async (req, res) => {
+        const result = await createRecord(Sensor, req.body, ["type"])
+        res.status(201).json(result)
+    }))
 
-    router.delete("/:id", deleteRecord(Sensor, "sensor"))
+    router.delete("/:id", handleAsync(async (req, res) => {
+        const { id } = req.params
+        const deleted = await deleteRecord(Sensor, id)
+        if (!deleted) return res.status(404).json({ error: "Sensor not found" })
+        res.sendStatus(204)
+    }))
 
     return router
 }
