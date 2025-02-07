@@ -5,7 +5,7 @@ Author: Saad Shakil
 This is the ACME REST API for managing devices and sensors, allowing registration, retrieval, and real-time updates via WebSocket.
 
 ## Table of Contents
-
+- [Root and Sub-Repo Directory Structure](#root-and-sub-repo-directory-structure)
 - [Installation](#installation)
 - [API Usage](#api-usage)
     - [Device Management](#device-management)
@@ -26,6 +26,24 @@ This is the ACME REST API for managing devices and sensors, allowing registratio
 - [WebSocket Support](#websocket-support)
 - [Next Steps](#next-steps)
 - [License](#license)
+
+## Root and Sub-Repo Directory Structure
+If you're interested in exploring the code and setting up a live dev env, this is the structure I used:
+```sh
+ACME
+.
+├── ACME-REST
+├── ACME-simulator
+├── README.md
+├── acme-ui
+└── docker-compose.yml
+```
+##### Repo Links
+[ACME](https://github.com/sshakil/ACME) - Root Proj <br>
+[ACME-REST](https://github.com/sshakil/ACME-REST) - REST API (this) <br>
+[ACME-simulator](https://github.com/sshakil/ACME-simulator) - CLI Simulator <br>
+[acme-ui](https://github.com/sshakil/acme-ui) - React UI <br>
+
 
 ## Installation
 
