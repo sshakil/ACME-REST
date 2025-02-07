@@ -51,9 +51,8 @@ const createRecord = async (model, data, uniqueFields = []) => {
 }
 
 /* Bulk creates records */
-const createRecords = async (io, model, eventName, dataList, uniqueFields = []) => {
+const createRecords = async (io, model, eventName, dataList, uniqueFields = [], emit = true) => {
     if (!model) throw new Error("Model must be provided")
-
     if (!Array.isArray(dataList) || !dataList.length) {
         throw new Error("Input must be a non-empty array of objects")
     }
@@ -69,7 +68,6 @@ const createRecords = async (io, model, eventName, dataList, uniqueFields = []) 
         existingRecords = await model.findAll({where: {[Op.or]: whereClauses}})
         const existingKeys = new Set(existingRecords.map(r => JSON.stringify(r.dataValues)))
 
-        // Insert only non-existing records
         const newRecords = dataList.filter(item => !existingKeys.has(JSON.stringify(item)))
 
         if (newRecords.length) {
@@ -87,31 +85,30 @@ const createRecords = async (io, model, eventName, dataList, uniqueFields = []) 
                     }
                 }
             } catch (e) {
-                console.error("❌ Error in createRecords:", e)
+                logAction("Failed", model, `Error: ${e.message}`, false)
                 throw e
             }
-
-            logAction("Bulk Created", model, `${insertedRecords.length} new records`)
         }
     }
 
-    const finalRecords = insertedRecords.concat(existingRecords) // Combine new and existing records
+    const finalRecords = insertedRecords.concat(existingRecords)
 
-    finalRecords.forEach(item => {
-        const exists = existingRecords.includes(item)
-        const eventData = {
-            id: item.id || null,
+    if (insertedRecords.length) {
+        logAction("Bulk Created", model, `${insertedRecords.length} new records`)
+    }
+
+    // 🔹 Event emission **only for newly created records**, if `emit` is true
+    if (emit && insertedRecords.length) {
+        emitEvent(io, eventName, model.name.toLowerCase(), insertedRecords.map(item => ({
+            id: item.id,
             time: item.createdAt || new Date().toISOString(),
-            added: !exists,
-            message: exists ? "pre-existed" : "new"
-        }
-
-        logAction(eventData.added ? "Created" : "Skipped", model, JSON.stringify(eventData))
-        emitEvent(io, eventName, model.name.toLowerCase(), eventData)
-    })
+            added: true,
+            message: "new"
+        })))
+    }
 
     return finalRecords.map(item => ({
-        id: item.id || null,
+        id: item.id,
         time: item.createdAt || new Date().toISOString(),
         added: !existingRecords.includes(item),
         message: existingRecords.includes(item) ? "pre-existed" : "new"

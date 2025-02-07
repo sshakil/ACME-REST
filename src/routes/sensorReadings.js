@@ -106,39 +106,37 @@ function sensorReadingsRoutes(io) {
      * Handles bulk insertion of sensor readings for a device.
      */
     router.post("/:device_id", handleAsync(async (req, res) => {
-        const {device_id} = req.params
-        const {readings, validateMappings, responseBody} = req.body
+        const { device_id } = req.params
+        const { readings, validateMappings, responseBody } = req.body
 
         if (!Array.isArray(readings) || !readings.length) {
-            return res.status(400).json({error: "Readings must be a non-empty array"})
-        }
-
-        const processedReadings = await processSensorReadings(device_id, readings, validateMappings)
-
-        // Extract only valid readings
-        const validReadings = processedReadings.filter(r => r.added).map(
-            (
-                {device_sensor_id, time, value}) => ({
-                    time,
-                    device_sensor_id,
-                    value
-                }
+            logAction("Failed",
+                `bulk sensor readings for device ${device_id}`,
+                "Invalid input: Empty or non-array",
+                false
             )
-        )
-
-        if (validReadings.length) {
-            await createRecords(io, SensorReading, "sensors-update", validReadings)
+            return res.status(400).json({ error: "Readings must be a non-empty array" })
         }
 
-        logAction("Created", `bulk sensor readings for device ${device_id}`, `${validReadings.length} readings`)
+        try {
+            const processedReadings = await processSensorReadings(device_id, readings, validateMappings)
 
-        emitEvent(io, "sensors-update", `device-id-${device_id}`, {
-            device_id,
-            ...(!responseBody ? {} : {readings: processedReadings})
-        })
+            // Extract valid readings
+            const validReadings = processedReadings.filter(r => r.added).map(({ device_sensor_id, time, value }) => ({
+                time,
+                device_sensor_id,
+                value
+            }))
 
-        if (!responseBody) return res.sendStatus(200)
-        res.status(201).json(processedReadings)
+            if (validReadings.length) {
+                await createRecords(io, SensorReading, "sensors-update", validReadings)
+            }
+
+            if (!responseBody) return res.sendStatus(200)
+            res.status(201).json(processedReadings)
+        } catch (error) {
+            res.status(500).json({ error: "Internal Server Error" })
+        }
     }))
 
     return router

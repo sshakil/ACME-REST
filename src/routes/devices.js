@@ -19,18 +19,21 @@ function devicesRoutes(io) {
     }))
 
     router.post("/:id/sensors", handleAsync(async (req, res) => {
-        const {id: device_id} = req.params
+        const { id: device_id } = req.params
         const sensorList = req.body
 
         if (!Array.isArray(sensorList) || !sensorList.length) {
-            return res.status(400).json({error: "Request body must be a non-empty array of sensor objects"})
+            return res.status(400).json({ error: "Request body must be a non-empty array of sensor objects" })
         }
+
         try {
             // Step 1: Create sensors
-            const createdSensors = await createRecords(io, Sensor, "sensors-created", sensorList, ["type", "unit"])
+            const createdSensors = await createRecords(
+                io, Sensor, "sensors-created", sensorList, ["type", "unit"], false
+            )
 
             if (!Array.isArray(createdSensors) || !createdSensors.length) {
-                return res.status(500).json({error: "Failed to create sensors"})
+                return res.status(500).json({ error: "Failed to create sensors" })
             }
 
             // Step 2: Create device-sensor mappings
@@ -39,19 +42,20 @@ function devicesRoutes(io) {
                 sensor_id: sensor.id
             }))
 
-            const createdMappings = await createRecords(io, DeviceSensor, "device-sensors-created", deviceSensorMappings, ["device_id", "sensor_id"])
+            const createdMappings = await createRecords(
+                io, DeviceSensor, "device-sensors-created",
+                deviceSensorMappings, ["device_id", "sensor_id"],
+                false
+            )
 
             if (!Array.isArray(createdMappings) || !createdMappings.length) {
-                return res.status(500).json({error: "Failed to create device-sensor mappings"})
+                return res.status(500).json({ error: "Failed to create device-sensor mappings" })
             }
 
-            // Emit events
-            createdMappings.forEach(mapping => emitEvent(io, "device-sensors-created", "device-sensor", mapping))
-
-            return res.status(201).json({message: "Sensors created and mapped successfully", createdMappings})
+            return res.status(201).json({ message: "Sensors created and mapped successfully", createdMappings })
         } catch (error) {
             logAction("Error", "POST /devices/:id/sensors", error.message, false)
-            return res.status(500).json({error: "Internal Server Error"})
+            return res.status(500).json({ error: "Internal Server Error" })
         }
     }))
 
