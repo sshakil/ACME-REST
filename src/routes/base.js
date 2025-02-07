@@ -39,7 +39,7 @@ const getAllRecords = (model, entityName) =>
     handleAsync(async (req, res) => {
         const records = await model.findAll()
         if (!records.length) return res.sendStatus(204)
-        logAction("Fetched", entityName, `${records.length} records`)
+        logAction("Fetched", entityName, `${records.length} record(s)`)
         res.json(records)
     })
 

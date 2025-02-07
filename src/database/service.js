@@ -1,36 +1,21 @@
-const { Op, Sequelize} = require("sequelize")
-const {emitEvent} = require("../routes/util");
+const {Op, Sequelize} = require("sequelize")
+const {emitEvent, logAction} = require("../routes/util")
 
-/**
- * Logs an action performed on an entity.
- */
-const logAction = (action, entity, details = "") => {
-    console.log(`✅ ${action} ${entity}${details ? `: ${details}` : ""}`)
-}
-
-/**
- * Fetches all records of a given model.
- */
+/* Fetches all records of a given model. */
 const getAllRecords = async (model) => {
     const records = await model.findAll()
-
-    logAction("Fetched", model.name, `${records.length} records`)
+    logAction("Fetched", model, `${records.length} records`)
     return records.length ? records : null
 }
 
-/**
- * Fetches records by a specific field value.
- */
+/* Fetches records by a specific field value. */
 const getRecordsByField = async (model, field, value, options = {}) => {
-    const records = await model.findAll({ where: { [field]: value }, ...options })
-
+    const records = await model.findAll({where: {[field]: value}, ...options})
     logAction(records.length ? "Fetched" : "Fetched (empty)", `${model.name} by ${field}`, value)
     return records.length ? records : null
 }
 
-/**
- * Creates a single record with optional uniqueness check.
- */
+/* Creates a single record with optional uniqueness check. */
 const createRecord = async (model, data, uniqueFields = []) => {
     let record
     let added = true
@@ -54,19 +39,26 @@ const createRecord = async (model, data, uniqueFields = []) => {
         message = error.message
     }
 
-    logAction(added ? "Created" : "Skipped creating", model.name, JSON.stringify({ id: record?.id, added, message }))
-    return { id: record?.id, time: record?.createdAt || new Date().toISOString(), added, message }
+    logAction(added ? "Created" : "Skipped creating", model, JSON.stringify({id: record?.id, added, message}))
+    return {
+        id: record?.id || null,
+        time: record?.createdAt || new Date().toISOString(),
+        ...(record?.name ? {name: record.name} : {}),
+        type: record?.type || model.name.toLowerCase(),
+        added,
+        message
+    }
 }
 
-/**
- * Bulk creates records without HTTP request/response handling.
- */
-const createRecords = async (io, model, entityName, eventName, dataList, uniqueFields = []) => {
+/* Bulk creates records */
+const createRecords = async (io, model, eventName, dataList, uniqueFields = []) => {
+    if (!model) throw new Error("Model must be provided")
+
     if (!Array.isArray(dataList) || !dataList.length) {
         throw new Error("Input must be a non-empty array of objects")
     }
 
-    let newRecords = dataList
+    let insertedRecords = []
     let existingRecords = []
 
     if (uniqueFields.length) {
@@ -74,53 +66,89 @@ const createRecords = async (io, model, entityName, eventName, dataList, uniqueF
             Object.fromEntries(uniqueFields.map(field => [field, item[field]]))
         )
 
-        existingRecords = await model.findAll({ where: { [Op.or]: whereClauses } })
+        existingRecords = await model.findAll({where: {[Op.or]: whereClauses}})
         const existingKeys = new Set(existingRecords.map(r => JSON.stringify(r.dataValues)))
-        newRecords = dataList.filter(item => !existingKeys.has(JSON.stringify(item)))
+
+        // Insert only non-existing records
+        const newRecords = dataList.filter(item => !existingKeys.has(JSON.stringify(item)))
+
+        if (newRecords.length) {
+            try {
+                for (const record of newRecords) {
+                    const [createdRecord, created] = await model.findOrCreate({
+                        where: Object.fromEntries(uniqueFields.map(field => [field, record[field]])),
+                        defaults: record
+                    })
+
+                    if (created) {
+                        insertedRecords.push(createdRecord)
+                    } else {
+                        existingRecords.push(createdRecord)
+                    }
+                }
+            } catch (e) {
+                console.error("❌ Error in createRecords:", e)
+                throw e
+            }
+
+            logAction("Bulk Created", model, `${insertedRecords.length} new records`)
+        }
     }
 
-    if (newRecords.length) {
-        await model.bulkCreate(newRecords)
-        logAction("Bulk Created", entityName, `${newRecords.length} records`)
-    }
+    const finalRecords = insertedRecords.concat(existingRecords) // Combine new and existing records
 
-    dataList.forEach(item => {
-        const exists = existingRecords.some(r => uniqueFields.every(field => r[field] === item[field]))
-        const responseData = {
-            id: exists ? existingRecords.find(r => uniqueFields.every(field => r[field] === item[field]))?.id : null,
-            time: new Date().toISOString(),
+    finalRecords.forEach(item => {
+        const exists = existingRecords.includes(item)
+        const eventData = {
+            id: item.id || null,
+            time: item.createdAt || new Date().toISOString(),
             added: !exists,
             message: exists ? "pre-existed" : "new"
         }
 
-        logAction(responseData.added ? "Created" : "Skipped", entityName, JSON.stringify(responseData))
-        emitEvent(io, eventName, entityName, responseData)
+        logAction(eventData.added ? "Created" : "Skipped", model, JSON.stringify(eventData))
+        emitEvent(io, eventName, model.name.toLowerCase(), eventData)
     })
 
-    return dataList.map(item => ({
-        id: existingRecords.find(r => uniqueFields.every(field => r[field] === item[field]))?.id || null,
-        time: new Date().toISOString(),
-        added: !existingRecords.some(r => uniqueFields.every(field => r[field] === item[field])),
-        message: existingRecords.some(r => uniqueFields.every(field => r[field] === item[field])) ? "pre-existed" : "new"
+    return finalRecords.map(item => ({
+        id: item.id || null,
+        time: item.createdAt || new Date().toISOString(),
+        added: !existingRecords.includes(item),
+        message: existingRecords.includes(item) ? "pre-existed" : "new"
     }))
 }
 
-
-/**
- * Deletes a record by ID.
- */
+/* Deletes a record by ID. */
 const deleteRecord = async (model, id) => {
-    const deleted = await model.destroy({ where: { id } })
+    const deleted = await model.destroy({where: {id}})
 
-    logAction(deleted ? "Deleted" : "Deletion failed", model.name, `ID: ${id}`)
+    logAction(
+        deleted ? "Deleted" : "Deletion failed",
+        model,
+        `ID: ${id}`,
+        deleted
+    )
+
     return deleted
 }
 
-/**
- * Validates foreign key relationships dynamically.
- */
+/* Updates a record by ID. */
+const updateRecord = async (model, id, data) => {
+    const [updatedRows] = await model.update(data, {where: {id}})
+
+    logAction(
+        updatedRows ? "Updated" : "Update failed",
+        model,
+        `ID: ${id}, Data: ${JSON.stringify(data)}`,
+        updatedRows
+    )
+
+    return updatedRows // Returns the number of updated rows
+}
+
+/* Validates foreign key relationships dynamically. */
 const validateForeignKey = async (model, field, value) => {
-    const record = await model.findOne({ where: { [field]: value } })
+    const record = await model.findOne({where: {[field]: value}})
     return !!record
 }
 
@@ -129,6 +157,7 @@ module.exports = {
     getRecordsByField,
     createRecord,
     createRecords,
+    updateRecord,
     deleteRecord,
     validateForeignKey,
 }

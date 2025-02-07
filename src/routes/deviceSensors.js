@@ -1,15 +1,10 @@
 const express = require("express")
-const {getAllRecords, getRecordsByField, createRecord, deleteRecord} = require("../database/service")
-const {handleAsync} = require("./util")
+const {getRecordsByField, createRecord, deleteRecord} = require("../database/service")
+const {handleAsync, emitEvent} = require("./util")
 const {DeviceSensor} = require("../database/models/definitions")
 
 function deviceSensorsRoutes(io) {
     const router = express.Router()
-
-    router.get("/", handleAsync(async (req, res) => {
-        const deviceSensors = await getAllRecords(DeviceSensor)
-        deviceSensors ? res.json(deviceSensors) : res.sendStatus(204)
-    }))
 
     router.get("/:device_id", handleAsync(async (req, res) => {
         const records = await getRecordsByField(DeviceSensor, "device_id", req.params.device_id)
@@ -18,12 +13,20 @@ function deviceSensorsRoutes(io) {
 
     router.post("/", handleAsync(async (req, res) => {
         const responseData = await createRecord(DeviceSensor, req.body)
+        //todo emit event
         res.status(201).json(responseData)
     }))
 
     router.delete("/:id", handleAsync(async (req, res) => {
-        const deleted = await deleteRecord(DeviceSensor, req.params.id)
-        deleted ? res.sendStatus(204) : res.status(404).json({error: "Device sensor not found"})
+        const id = req.params.id
+        const deleted = await deleteRecord(DeviceSensor, id)
+
+        if (deleted) {
+            emitEvent(io, "device-sensor-deleted", "devices-sensors", {id})
+            res.sendStatus(204)
+        } else {
+            res.status(404).json({error: "Device-Sensor not found"})
+        }
     }))
 
     return router

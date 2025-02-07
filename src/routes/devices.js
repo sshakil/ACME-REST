@@ -1,9 +1,9 @@
 const express = require("express")
-const { getAllRecords, createRecord, createRecords } = require("../database/service")
-const { handleAsync, logAction, emitEvent } = require("./util")
-const {DeviceSensor, Device} = require("../database/models/definitions")
+const {getAllRecords, createRecord, createRecords, deleteRecord} = require("../database/service")
+const {handleAsync, logAction, emitEvent} = require("./util")
+const {DeviceSensor, Device, Sensor} = require("../database/models/definitions")
 
- function devicesRoutes(io) {
+function devicesRoutes(io) {
     const router = express.Router()
 
     router.get("/", handleAsync(async (req, res) => {
@@ -11,29 +11,62 @@ const {DeviceSensor, Device} = require("../database/models/definitions")
         devices ? res.json(devices) : res.sendStatus(204)
     }))
 
+    //todo move emit to inside?
     router.post("/", handleAsync(async (req, res) => {
-        const responseData = await createRecord(Device, req.body)
-        logAction("Created", "device", JSON.stringify(responseData))
-        emitEvent(io, "device-created", "devices", responseData)
-        res.status(201).json(responseData)
+        const devices = await createRecord(Device, req.body)
+        emitEvent(io, "device-created", "devices", devices)
+        res.status(201).json(devices)
     }))
 
     router.post("/:id/sensors", handleAsync(async (req, res) => {
-        const { id: device_id } = req.params
+        const {id: device_id} = req.params
         const sensorList = req.body
 
         if (!Array.isArray(sensorList) || !sensorList.length) {
-            return res.status(400).json({ error: "Request body must be a non-empty array of sensor objects" })
+            return res.status(400).json({error: "Request body must be a non-empty array of sensor objects"})
         }
-
         try {
-            const createdMappings = await createRecords(DeviceSensor, sensorList, ["type", "unit"])
-            return res.status(201).json({ message: "Sensors created and mapped successfully", createdMappings })
+            // Step 1: Create sensors
+            const createdSensors = await createRecords(io, Sensor, "sensors-created", sensorList, ["type", "unit"])
+
+            if (!Array.isArray(createdSensors) || !createdSensors.length) {
+                return res.status(500).json({error: "Failed to create sensors"})
+            }
+
+            // Step 2: Create device-sensor mappings
+            const deviceSensorMappings = createdSensors.map(sensor => ({
+                device_id,
+                sensor_id: sensor.id
+            }))
+
+            const createdMappings = await createRecords(io, DeviceSensor, "device-sensors-created", deviceSensorMappings, ["device_id", "sensor_id"])
+
+            if (!Array.isArray(createdMappings) || !createdMappings.length) {
+                return res.status(500).json({error: "Failed to create device-sensor mappings"})
+            }
+
+            // Emit events
+            createdMappings.forEach(mapping => emitEvent(io, "device-sensors-created", "device-sensor", mapping))
+
+            return res.status(201).json({message: "Sensors created and mapped successfully", createdMappings})
         } catch (error) {
-            console.error("❌ Error in POST /devices/:id/sensors:", error.message)
-            return res.status(500).json({ error: "Internal Server Error" })
+            logAction("Error", "POST /devices/:id/sensors", error.message, false)
+            return res.status(500).json({error: "Internal Server Error"})
         }
     }))
+
+    router.delete("/:id", handleAsync(async (req, res) => {
+        const id = req.params.id
+        const deleted = await deleteRecord(Device, id)
+
+        if (deleted) {
+            emitEvent(io, "device-deleted", "devices", {id})
+            res.sendStatus(204)
+        } else {
+            res.status(404).json({error: "Device not found"})
+        }
+    }))
+
 
     return router
 }

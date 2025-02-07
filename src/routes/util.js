@@ -6,27 +6,29 @@ const handleAsync = (fn) => async (req, res, next) => {
         await fn(req, res, next)
     } catch (error) {
         console.error(`❌ Error in ${req.method} ${req.originalUrl}:`, error.message)
-        res.status(500).json({ error: "Internal server error" })
+        res.status(500).json({error: "Internal server error"})
     }
 }
 
 /**
  * Logs an action performed on an entity.
  */
-const logAction = (action, entity, details = "") => {
-    console.log(`✅ ${action} ${entity}${details ? `: ${details}` : ""}`)
+const logAction = (action, model, details = "", success = true) => {
+    console.log(
+        `${success ? "✅" : "❌"} ${action} ${
+            model && (typeof model === "string"
+                ? model
+                : model.name || "UnknownModel")
+        }${details ? `: ${details}` : ""}`
+    )
 }
 
 /**
  * Emits an event via WebSocket and sends a response.
  */
 const emitEvent = (io, eventName, room, data) => {
-    try {
-        io.to(room).emit(eventName, data)
-        console.log(`📡 Emitted "${eventName}" to ${room}`)
-    } catch (err) {
-        console.error(`❌ Failed to emit event "${eventName}" to ${room}:`, err)
-    }
+    // logging and error handling in websocket.js middleware
+    io.to(room).emit(eventName, data)
 }
 
-module.exports = { handleAsync, logAction, emitEvent }
+module.exports = {handleAsync, logAction, emitEvent}
