@@ -29,7 +29,7 @@ function devicesRoutes(io) {
         try {
             // Step 1: Create sensors
             const createdSensors = await createRecords(
-                io, Sensor, "sensors-created", sensorList, ["type", "unit"], false
+                io, Sensor, device_id, "sensors-created", sensorList, ["type", "unit"], false
             )
 
             if (!Array.isArray(createdSensors) || !createdSensors.length) {
@@ -43,7 +43,7 @@ function devicesRoutes(io) {
             }))
 
             const createdMappings = await createRecords(
-                io, DeviceSensor, "device-sensors-created",
+                io, DeviceSensor, device_id,"device-sensors-created",
                 deviceSensorMappings, ["device_id", "sensor_id"],
                 false
             )

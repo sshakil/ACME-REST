@@ -121,20 +121,35 @@ function sensorReadingsRoutes(io) {
         try {
             const processedReadings = await processSensorReadings(device_id, readings, validateMappings)
 
-            // Extract valid readings
-            const validReadings = processedReadings.filter(r => r.added).map(({ device_sensor_id, time, value }) => ({
-                time,
-                device_sensor_id,
-                value
-            }))
+            // Extract only valid readings for DB insertion
+            const validReadings = processedReadings
+                .filter(r => r.added)
+                .map(({ device_sensor_id, time, value }) => ({
+                    time,
+                    device_sensor_id,
+                    value,
+                }))
 
             if (validReadings.length) {
-                await createRecords(io, SensorReading, "sensors-update", validReadings)
+                await createRecords(
+                    io, SensorReading, device_id,
+                    "sensors-update", validReadings,
+                    ["device_sensor_id", "time"],
+                    false // Don't emit through createRecords
+                )
+
+                // Emit here so type and unit can be included
+                emitEvent(io, "sensors-update", "sensorreading", {
+                    parentResourceId: device_id,
+                    data: processedReadings.filter(r => r.added) // Include full sensor details
+                })
             }
 
             if (!responseBody) return res.sendStatus(200)
             res.status(201).json(processedReadings)
+
         } catch (error) {
+            logAction("Error", `Failed to process sensor readings for device ${device_id}`, error.message, false)
             res.status(500).json({ error: "Internal Server Error" })
         }
     }))

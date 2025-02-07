@@ -51,7 +51,9 @@ const createRecord = async (model, data, uniqueFields = []) => {
 }
 
 /* Bulk creates records */
-const createRecords = async (io, model, eventName, dataList, uniqueFields = [], emit = true) => {
+const createRecords = async (
+    io, model, parentResourceId, eventName, dataList, uniqueFields = [], emit = true
+) => {
     if (!model) throw new Error("Model must be provided")
     if (!Array.isArray(dataList) || !dataList.length) {
         throw new Error("Input must be a non-empty array of objects")
@@ -65,7 +67,7 @@ const createRecords = async (io, model, eventName, dataList, uniqueFields = [], 
             Object.fromEntries(uniqueFields.map(field => [field, item[field]]))
         )
 
-        existingRecords = await model.findAll({where: {[Op.or]: whereClauses}})
+        existingRecords = await model.findAll({ where: { [Op.or]: whereClauses } })
         const existingKeys = new Set(existingRecords.map(r => JSON.stringify(r.dataValues)))
 
         const newRecords = dataList.filter(item => !existingKeys.has(JSON.stringify(item)))
@@ -99,17 +101,35 @@ const createRecords = async (io, model, eventName, dataList, uniqueFields = [], 
 
     // 🔹 Event emission **only for newly created records**, if `emit` is true
     if (emit && insertedRecords.length) {
-        emitEvent(io, eventName, model.name.toLowerCase(), insertedRecords.map(item => ({
-            id: item.id,
-            time: item.createdAt || new Date().toISOString(),
-            added: true,
-            message: "new"
-        })))
+        const eventPayload = {
+            data: insertedRecords.map(item => {
+                // Dynamically extract all relevant fields
+                const recordData = Object.keys(item.dataValues).reduce((acc, key) => {
+                    acc[key] = item[key] || "Unknown" // Default to "Unknown" for missing fields
+                    return acc
+                }, {})
+
+                return {
+                    ...recordData,
+                    added: true,
+                    message: "new"
+                }
+            })
+        }
+
+        // Include parentResourceId only if it's provided
+        if (parentResourceId) {
+            eventPayload.parentResourceId = parentResourceId
+        }
+
+        emitEvent(io, eventName, model.name.toLowerCase(), eventPayload)
     }
 
     return finalRecords.map(item => ({
-        id: item.id,
-        time: item.createdAt || new Date().toISOString(),
+        ...Object.keys(item.dataValues).reduce((acc, key) => {
+            acc[key] = item[key] || "Unknown"
+            return acc
+        }, {}),
         added: !existingRecords.includes(item),
         message: existingRecords.includes(item) ? "pre-existed" : "new"
     }))
