@@ -1,21 +1,21 @@
-const {Op, Sequelize} = require("sequelize")
+const {Op} = require("sequelize")
 const {emitEvent, logAction} = require("../routes/util")
 
-/* Fetches all records of a given model. */
+/* Fetches all records for the given model */
 const getAllRecords = async (model) => {
     const records = await model.findAll()
     logAction("Fetched", model, `${records.length} records`)
     return records.length ? records : null
 }
 
-/* Fetches records by a specific field value. */
+/* Fetches records by a specified field value */
 const getRecordsByField = async (model, field, value, options = {}) => {
     const records = await model.findAll({where: {[field]: value}, ...options})
     logAction(records.length ? "Fetched" : "Fetched (empty)", `${model.name} by ${field}`, value)
     return records.length ? records : null
 }
 
-/* Creates a single record with optional uniqueness check. */
+/* Creates a single record, optionally enforcing uniqueness */
 const createRecord = async (model, data, uniqueFields = []) => {
     let record
     let added = true
@@ -50,7 +50,7 @@ const createRecord = async (model, data, uniqueFields = []) => {
     }
 }
 
-/* Bulk creates records */
+/* Bulk creates records, ensuring uniqueness if specified */
 const createRecords = async (
     io, model, parentResourceId, eventName, dataList, uniqueFields = [], emit = true
 ) => {
@@ -99,13 +99,12 @@ const createRecords = async (
         logAction("Bulk Created", model, `${insertedRecords.length} new records`)
     }
 
-    // 🔹 Event emission **only for newly created records**, if `emit` is true
+    // Emit event only for newly created records if `emit` is true
     if (emit && insertedRecords.length) {
         const eventPayload = {
             data: insertedRecords.map(item => {
-                // Dynamically extract all relevant fields
                 const recordData = Object.keys(item.dataValues).reduce((acc, key) => {
-                    acc[key] = item[key] || "Unknown" // Default to "Unknown" for missing fields
+                    acc[key] = item[key] || "Unknown"
                     return acc
                 }, {})
 
@@ -117,7 +116,6 @@ const createRecords = async (
             })
         }
 
-        // Include parentResourceId only if it's provided
         if (parentResourceId) {
             eventPayload.parentResourceId = parentResourceId
         }
@@ -135,7 +133,7 @@ const createRecords = async (
     }))
 }
 
-/* Deletes a record by ID. */
+/* Deletes a record by its ID */
 const deleteRecord = async (model, id) => {
     const deleted = await model.destroy({where: {id}})
 
@@ -149,7 +147,7 @@ const deleteRecord = async (model, id) => {
     return deleted
 }
 
-/* Updates a record by ID. */
+/* Updates a record by its ID */
 const updateRecord = async (model, id, data) => {
     const [updatedRows] = await model.update(data, {where: {id}})
 
@@ -163,7 +161,7 @@ const updateRecord = async (model, id, data) => {
     return updatedRows // Returns the number of updated rows
 }
 
-/* Validates foreign key relationships dynamically. */
+/* Checks if a value exists for a foreign key in the given model */
 const validateForeignKey = async (model, field, value) => {
     const record = await model.findOne({where: {[field]: value}})
     return !!record

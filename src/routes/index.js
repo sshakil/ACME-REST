@@ -5,7 +5,7 @@ const deviceSensorsRoutes = require("./deviceSensors")
 const sensorReadingsRoutes = require("./sensorReadings")
 
 /**
- * Creates and configures the main router.
+ * Sets up the main API router.
  *
  * @param {import("socket.io").Server} io - Socket.IO instance for real-time events.
  * @returns {express.Router} The configured Express router.
